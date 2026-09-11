@@ -1,0 +1,39 @@
+{
+  "format": "cumcm2026b-adaptive-policy-v3",
+  "problem": 3,
+  "robot_id": "<TEAM_ID>",
+  "search_stations": [
+    {
+      "x": 0.0,
+      "y": 0.0
+    },
+    {
+      "x": 1125.0,
+      "y": 0.0
+    },
+    {
+      "x": 562.5000000000001,
+      "y": 974.2785792574934
+    },
+    {
+      "x": -562.4999999999998,
+      "y": 974.2785792574936
+    },
+    {
+      "x": -1125.0,
+      "y": 1.3777276490407724e-13
+    },
+    {
+      "x": -562.5000000000005,
+      "y": -974.2785792574933
+    },
+    {
+      "x": 562.5000000000001,
+      "y": -974.2785792574934
+    }
+  ],
+  "channel_rule": "scan 1..20 in snake order; skip cleared channels; stop refining a known channel at MEC<=19m for P3 or <=60m for P4; stop unknown channels after 16 sources",
+  "direction_rule": "intersect arena, 1500m disks and all +/-1deg bearing wedges",
+  "clear_rule": "MEC centre if radius<=19m; P3 probes the MEC centre once at radius<=40m; P4 first uses guaranteed symmetric receiver pairs; otherwise use a 19m triangular cover of the feasible polygon",
+  "execution": "run robot_strategy.py; each next HTTP request depends on the previous response"
+}
