@@ -1,0 +1,25 @@
+{
+  "problem": 3,
+  "cases": 100,
+  "baseline": {
+    "failures": 0,
+    "mean_s": 4400.215,
+    "median_s": 4433.254,
+    "p90_s": 4884.589,
+    "max_s": 5579.066,
+    "mean_measures": 133.05,
+    "mean_clears": 13.66
+  },
+  "optimized": {
+    "failures": 0,
+    "mean_s": 4094.892,
+    "median_s": 4118.548,
+    "p90_s": 4392.077,
+    "max_s": 4718.362,
+    "mean_measures": 133.3,
+    "mean_clears": 13.86
+  },
+  "mean_paired_reduction_pct": 6.704,
+  "minimum_paired_reduction_pct": 0.0,
+  "improved_cases": 96
+}
