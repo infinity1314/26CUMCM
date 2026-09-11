@@ -10,6 +10,7 @@ JSONL log is the complete instruction sequence for that run.
 from __future__ import annotations
 
 import argparse
+import heapq
 import json
 import math
 import os
@@ -84,21 +85,30 @@ def _two_opt_open(points: Sequence[Point], start: Point) -> List[Point]:
 
 
 def p4_search_stations() -> List[Point]:
-    """A certified 31-station concentric layout for directional discovery.
+    """A certified 28-station triangular layout for directional discovery.
 
     At every possible source point, the convex hull of stations no farther
     than 1000 m contains that point.  Hence every directed emission half-plane
-    contains at least one receiving station.  A dense polar certificate with
-    a continuous-cell bound verifies the complete target disk.
+    contains at least one receiving station.  Twenty-seven translated lattice
+    points provide the coverage; the origin is added for a high-yield first
+    scan.  A continuous-cell certificate verifies the complete target disk.
     """
-    stations: List[Point] = [(0.0, 0.0)]
-    rings = ((6, 800.0, 0.0),
-             (12, 1450.0, 0.0),
-             (12, 2200.0, 0.0))
-    for count, radius, offset in rings:
-        for index in range(count):
-            angle = offset + 2.0 * math.pi * index / count
-            stations.append((radius * math.cos(angle), radius * math.sin(angle)))
+    spacing = 950.0
+    row_height = spacing * math.sqrt(3.0) / 2.0
+    offset_x = 0.45 * spacing
+    offset_y = 0.35 * row_height
+    lattice = [
+        (spacing * (column + row / 2.0) + offset_x,
+         row_height * row + offset_y)
+        for row in range(-6, 7)
+        for column in range(-6, 7)
+    ]
+    stations = heapq.nsmallest(
+        27,
+        lattice,
+        key=lambda point: point[0] * point[0] + point[1] * point[1],
+    )
+    stations.append((0.0, 0.0))
     return _two_opt_open(stations, (0.0, 0.0))
 
 
@@ -232,6 +242,11 @@ def search_phase(client: RobotClient, problem: int) -> Tuple[Dict[int, SourceSta
 
     for station_index, station in enumerate(stations):
         found_count = len(set(states) | cleared)
+        # There are at most 16 sources.  In P4, once all 16 distinct channels
+        # have been observed, further global stations cannot discover another
+        # source and individual guaranteed localization is faster on average.
+        if problem == 4 and found_count >= 16:
+            break
         active: List[int] = []
         for channel in CHANNELS:
             if channel in cleared:

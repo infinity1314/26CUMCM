@@ -247,6 +247,21 @@ def make_random_sources(seed, mixed):
     return sources
 
 
+def sixteen_mixed_sources(seed):
+    """Sixteen sources with the 11 omnidirectional / 5 directional mix."""
+    rng = random.Random(seed)
+    sources = {}
+    directional_channels = set(rng.sample(range(1, 17), 5))
+    for channel in range(1, 17):
+        radial = 1780.0 * math.sqrt(rng.random())
+        angle = rng.random() * 2.0 * math.pi
+        point = (radial * math.cos(angle), radial * math.sin(angle))
+        direction = (rng.random() * 2.0 * math.pi
+                     if channel in directional_channels else None)
+        sources[channel] = (point, rng.uniform(1000.0, 1500.0), direction)
+    return sources
+
+
 def boundary_outward_sources():
     sources = {}
     for channel in range(1, 11):
@@ -259,8 +274,11 @@ def boundary_outward_sources():
 def verify_complete_policy(problem, sources):
     oracle = OfflineResponses(sources)
     cleared, unresolved, absent = run_problem(oracle, problem)
-    assert cleared == list(range(1, 11))
-    assert not unresolved and absent == list(range(11, 21))
+    expected = sorted(sources)
+    expected_absent = [channel for channel in range(1, 21)
+                       if channel not in sources]
+    assert cleared == expected
+    assert not unresolved and absent == expected_absent
     return {"problem": problem, "cleared": len(cleared),
             "measure_commands": oracle.measures, "clear_commands": oracle.clears,
             "virtual_time_s": oracle.virtual_time,
@@ -275,6 +293,7 @@ def main():
     print(verify_directional_pair())
     print(verify_complete_policy(3, make_random_sources(93, False)))
     print(verify_complete_policy(4, make_random_sources(94, True)))
+    print(verify_complete_policy(4, sixteen_mixed_sources(95)))
     print(verify_complete_policy(4, boundary_outward_sources()))
 
 
