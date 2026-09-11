@@ -10,7 +10,6 @@ JSONL log is the complete instruction sequence for that run.
 from __future__ import annotations
 
 import argparse
-import heapq
 import json
 import math
 import os
@@ -23,11 +22,14 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from localization_geometry import (
+    _information_min_eigenvalue,
+    _localization_samples,
     Bearing,
     Point,
     covering_clear_points,
     distance,
     feasible_polygon,
+    guaranteed_reception,
     guaranteed_receiver_station,
     minimum_enclosing_circle,
     nearest_neighbour_order,
@@ -39,6 +41,7 @@ CHANNELS = tuple(range(1, 21))
 CLEAR_RADIUS = 20.0
 SAFE_MEC_RADIUS = 19.0
 P3_PROBE_RADIUS = 40.0
+P3_INFORMATION_FRACTION = 0.10
 P4_SEARCH_REFINEMENT_RADIUS = 60.0
 
 
@@ -85,30 +88,28 @@ def _two_opt_open(points: Sequence[Point], start: Point) -> List[Point]:
 
 
 def p4_search_stations() -> List[Point]:
-    """A certified 28-station triangular layout for directional discovery.
+    """A certified 25-station concentric layout for directional discovery.
 
     At every possible source point, the convex hull of stations no farther
     than 1000 m contains that point.  Hence every directed emission half-plane
-    contains at least one receiving station.  Twenty-seven translated lattice
-    points provide the coverage; the origin is added for a high-yield first
-    scan.  A continuous-cell certificate verifies the complete target disk.
+    contains at least one receiving station.  The origin, a 12-point 980 m
+    ring, and a 12-point 1875 m ring offset by 12.5 degrees provide a shorter
+    route and a larger certificate margin than the translated lattice layout.
     """
-    spacing = 950.0
-    row_height = spacing * math.sqrt(3.0) / 2.0
-    offset_x = 0.45 * spacing
-    offset_y = 0.35 * row_height
-    lattice = [
-        (spacing * (column + row / 2.0) + offset_x,
-         row_height * row + offset_y)
-        for row in range(-6, 7)
-        for column in range(-6, 7)
-    ]
-    stations = heapq.nsmallest(
-        27,
-        lattice,
-        key=lambda point: point[0] * point[0] + point[1] * point[1],
+    inner_radius = 980.0
+    outer_radius = 1875.0
+    outer_offset = math.radians(12.5)
+    stations = [(0.0, 0.0)]
+    stations.extend(
+        (inner_radius * math.cos(2.0 * math.pi * index / 12.0),
+         inner_radius * math.sin(2.0 * math.pi * index / 12.0))
+        for index in range(12)
     )
-    stations.append((0.0, 0.0))
+    stations.extend(
+        (outer_radius * math.cos(outer_offset + 2.0 * math.pi * index / 12.0),
+         outer_radius * math.sin(outer_offset + 2.0 * math.pi * index / 12.0))
+        for index in range(12)
+    )
     return _two_opt_open(stations, (0.0, 0.0))
 
 
@@ -263,6 +264,12 @@ def search_phase(client: RobotClient, problem: int) -> Tuple[Dict[int, SourceSta
 
         for channel in _scan_order(active, client.current_channel,
                                    reverse=bool(station_index % 2)):
+            # Once all 16 possible sources are known, an as-yet unseen channel
+            # is certainly absent.  Keep useful on-route refinements for known
+            # P3 sources, but never spend another measure on an absent channel.
+            if (problem == 3 and channel not in states
+                    and len(set(states) | cleared) >= 16):
+                continue
             response = client.measure(station, channel)
             result = response["measure_result"]
             if result == "near":
@@ -292,6 +299,69 @@ def clear_polygon(client: RobotClient, state: SourceState) -> bool:
     return False
 
 
+def _p3_receiver_candidates(poly: Sequence[Point], observations: Sequence[Bearing],
+                            current: Point) -> List[Point]:
+    """Generate short-move and cautious-greedy P3 bearing candidates."""
+    first = observations[0]
+    ux, uy = math.cos(first.angle), math.sin(first.angle)
+    wx, wy = -uy, ux
+    candidates: List[Point] = [current]
+
+    for radial in (100.0, 200.0, 300.0, 400.0, 500.0):
+        for index in range(16):
+            angle = 2.0 * math.pi * index / 16.0
+            candidates.append((current[0] + radial * math.cos(angle),
+                               current[1] + radial * math.sin(angle)))
+
+    for along in range(0, 1501, 100):
+        for lateral in range(100, 1001, 100):
+            for sign in (-1.0, 1.0):
+                candidates.append((first.point[0] + along * ux + sign * lateral * wx,
+                                   first.point[1] + along * uy + sign * lateral * wy))
+
+    mec = minimum_enclosing_circle(poly)
+    for radial in range(100, 901, 100):
+        for index in range(24):
+            angle = 2.0 * math.pi * index / 24.0
+            candidates.append((mec.center[0] + radial * math.cos(angle),
+                               mec.center[1] + radial * math.sin(angle)))
+    return candidates
+
+
+def time_aware_p3_receiver_station(
+    poly: Sequence[Point],
+    observations: Sequence[Bearing],
+    current: Point,
+) -> Optional[Point]:
+    """Minimize P3 travel while retaining guaranteed reception and geometry."""
+    if not poly or not observations:
+        return None
+
+    samples = _localization_samples(poly)
+    previous_points = [item.point for item in observations]
+    ranked: List[Tuple[float, float, Point]] = []
+    for candidate in _p3_receiver_candidates(poly, observations, current):
+        if min(distance(candidate, point) for point in previous_points) < 1.0:
+            continue
+        if not guaranteed_reception(
+            poly, observations, candidate, margin=2.0
+        ):
+            continue
+        stations = previous_points + [candidate]
+        worst_information = min(
+            _information_min_eigenvalue(source, stations)
+            for source in samples
+        )
+        ranked.append((worst_information, distance(current, candidate), candidate))
+
+    if not ranked:
+        return guaranteed_receiver_station(poly, observations, current)
+
+    cutoff = P3_INFORMATION_FRACTION * max(item[0] for item in ranked)
+    return min((item for item in ranked if item[0] >= cutoff),
+               key=lambda item: item[1])[2]
+
+
 def localize_and_clear_p3(client: RobotClient, state: SourceState) -> bool:
     """Add guaranteed-reception bearings until one clear disk covers P."""
     probed_centres: List[Point] = []
@@ -313,7 +383,9 @@ def localize_and_clear_p3(client: RobotClient, state: SourceState) -> bool:
                 return True
             probed_centres.append(circle.center)
 
-        station = guaranteed_receiver_station(poly, state.observations, client.current)
+        station = time_aware_p3_receiver_station(
+            poly, state.observations, client.current
+        )
         if station is None:
             break
         response = client.measure(station, state.channel)
@@ -428,13 +500,13 @@ def write_policy(problem: int, robot_id: str, output: Path) -> None:
     """Write the response-dependent command policy without contacting a port."""
     stations = p3_search_stations() if problem == 3 else p4_search_stations()
     policy = {
-        "format": "cumcm2026b-adaptive-policy-v4",
+        "format": "cumcm2026b-adaptive-policy-v7",
         "problem": problem,
         "robot_id": robot_id,
         "search_stations": [{"x": x, "y": y} for x, y in stations],
         "channel_rule": ("scan 1..20 in snake order; skip cleared channels; stop refining a known "
-                         "channel at MEC<=19m for P3 or <=60m for P4; in P4 stop the global route "
-                         "as soon as 16 distinct source channels have been found"),
+                         "channel at MEC<=19m for P3 or <=60m for P4; once 16 sources are known, "
+                         "skip every unseen channel; in P4 also stop the global route"),
         "direction_rule": "intersect arena, 1500m disks and all +/-1deg bearing wedges",
         "clear_rule": ("MEC centre if radius<=19m; P3 probes the MEC centre once at radius<=40m; "
                        "P4 first uses guaranteed symmetric receiver pairs; otherwise use a 19m "
@@ -453,9 +525,15 @@ def timestamped_log_path(path: Path, timestamp: str | None = None) -> Path:
     return path.with_name(f"{stem}_{timestamp}{suffix}")
 
 
-def main() -> int:
+def main(fixed_problem: Optional[int] = None) -> int:
+    if fixed_problem not in (None, 3, 4):
+        raise ValueError(f"unsupported fixed problem: {fixed_problem}")
+
     parser = argparse.ArgumentParser()
-    parser.add_argument("--problem", type=int, choices=(3, 4), required=True)
+    if fixed_problem is None:
+        parser.add_argument("--problem", type=int, choices=(3, 4), required=True)
+    else:
+        parser.set_defaults(problem=fixed_problem)
     parser.add_argument("--robot-id", default=os.environ.get("ROBOT_ID", ""))
     parser.add_argument("--base-url", default="http://127.0.0.1:2026")
     parser.add_argument(

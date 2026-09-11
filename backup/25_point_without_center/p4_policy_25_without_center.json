@@ -1,0 +1,111 @@
+{
+  "format": "cumcm2026b-adaptive-policy-v6",
+  "problem": 4,
+  "robot_id": "<TEAM_ID>",
+  "search_stations": [
+    {
+      "x": -173.0,
+      "y": 100.0
+    },
+    {
+      "x": 321.5,
+      "y": 956.4991243428098
+    },
+    {
+      "x": -667.5,
+      "y": 956.4991243428098
+    },
+    {
+      "x": -1162.0,
+      "y": 100.0
+    },
+    {
+      "x": -667.5,
+      "y": -756.4991243428098
+    },
+    {
+      "x": -173.0,
+      "y": -1612.9982486856195
+    },
+    {
+      "x": 321.5,
+      "y": -756.4991243428098
+    },
+    {
+      "x": 1310.5,
+      "y": -756.4991243428098
+    },
+    {
+      "x": 816.0,
+      "y": 100.0
+    },
+    {
+      "x": 1310.5,
+      "y": 956.4991243428098
+    },
+    {
+      "x": 816.0,
+      "y": 1812.9982486856195
+    },
+    {
+      "x": -173.0,
+      "y": 1812.9982486856195
+    },
+    {
+      "x": -1162.0,
+      "y": 1812.9982486856195
+    },
+    {
+      "x": -1656.5,
+      "y": 956.4991243428098
+    },
+    {
+      "x": -2151.0,
+      "y": 100.0
+    },
+    {
+      "x": -1656.5,
+      "y": -756.4991243428098
+    },
+    {
+      "x": -1162.0,
+      "y": -1612.9982486856195
+    },
+    {
+      "x": -667.5,
+      "y": -2469.497373028429
+    },
+    {
+      "x": 321.5,
+      "y": -2469.497373028429
+    },
+    {
+      "x": 816.0,
+      "y": -1612.9982486856195
+    },
+    {
+      "x": 1805.0,
+      "y": -1612.9982486856195
+    },
+    {
+      "x": 2299.5,
+      "y": -756.4991243428098
+    },
+    {
+      "x": 1805.0,
+      "y": 100.0
+    },
+    {
+      "x": 2299.5,
+      "y": 956.4991243428098
+    },
+    {
+      "x": 1805.0,
+      "y": 1812.9982486856195
+    }
+  ],
+  "channel_rule": "scan 1..20 in snake order; skip cleared channels; stop refining a known channel at MEC<=19m for P3 or <=60m for P4; in P4 stop the global route as soon as 16 distinct source channels have been found",
+  "direction_rule": "intersect arena, 1500m disks and all +/-1deg bearing wedges",
+  "clear_rule": "MEC centre if radius<=19m; P3 probes the MEC centre once at radius<=40m; P4 first uses guaranteed symmetric receiver pairs; otherwise use a 19m triangular cover of the feasible polygon",
+  "execution": "run robot_strategy.py; each next HTTP request depends on the previous response"
+}

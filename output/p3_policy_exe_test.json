@@ -1,5 +1,5 @@
 {
-  "format": "cumcm2026b-adaptive-policy-v4",
+  "format": "cumcm2026b-adaptive-policy-v7",
   "problem": 3,
   "robot_id": "<TEAM_ID>",
   "search_stations": [

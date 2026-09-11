@@ -1,16 +1,24 @@
-# 问题 3/4 独立优化版
+# 问题 2/3/4 独立优化版
 
 本目录不修改上级目录中的原始源码和 `dist/cumcm_robot.exe`。优化版只替换两个策略钩子，
 HTTP 协议、定位多边形、异常处理及最终覆盖清除仍复用原实现。
 
+问题 2 的定位质量目标与问题 3/4 的总耗时目标不同，因此新增的
+`question2_optimized.py` 是独立离线求解器，不会安装到问题 3/4 的运行策略中。
+
 ## 改动
 
-1. 问题 3：下一测点从“信息量绝对优先”改为“保证接收与最低信息量约束下路程优先”。
+1. 问题 2：在保证再次接收的候选中，直接以有界误差楔形交集的采样最坏直径排序；
+   Fisher 信息不再作为硬前筛选。全部候选先粗评，随后对优选点加密评估并作局部细化。
+   输出明确标记为数值近似最优，保证接收判定仍是严格约束。
+2. 问题 3：下一测点从“信息量绝对优先”改为“保证接收与最低信息量约束下路程优先”。
    候选点必须通过原程序的严格保证接收判定；在达到最佳最坏信息量 10% 的点中选择最近点。
    若没有候选点，自动退回原最坏直径选点算法。
-2. 问题 4：将 `1+6+12+12=31` 个搜索站改为 `1+5+10+12=28` 个搜索站，三个环半径分别为
+3. 问题 4：将 `1+6+12+12=31` 个搜索站改为 `1+5+10+12=28` 个搜索站，三个环半径分别为
    900、1400、1900 米。开路径经 2-opt 后由约 24.87 km 降到约 19.08 km。
-3. 全部原有完备性兜底保留：最小包围圆、保证接收的定向测点对、19 米三角格覆盖清除。
+4. 全部原有完备性兜底保留：最小包围圆、保证接收的定向测点对、19 米三角格覆盖清除。
+
+第二问详细推导和论文表述见 `QUESTION2_CORRECTION.md`。
 
 ## 验证结果
 
@@ -31,6 +39,13 @@ python offline_verify_optimized.py
 python benchmark_optimized.py --cases 100
 ```
 
+第二问独立回归测试：
+
+```powershell
+python verify_question2_optimized.py
+python question2_optimized.py --x 0 --y 0 --bearing-deg 0
+```
+
 ## 运行
 
 先由人工启动模拟器并等待接口开放，再运行：
@@ -45,9 +60,11 @@ python benchmark_optimized.py --cases 100
 ## 论文依据
 
 - Vander Hook, Tokekar, Isler, *Cautious Greedy Strategy for Bearing-based Active Localization*,
-  ICRA 2012, DOI: `10.1109/ICRA.2012.6225244`。用于保证可观测性与移动代价的折中。
+  ICRA 2012, DOI: `10.1109/ICRA.2012.6225244`。该文采用高斯 EKF 和概率型谨慎约束；
+  本题只借鉴其定位质量与移动代价折中思想，不把它作为确定性保证接收公式的来源。
 - Tokekar, Isler, *Sensor Placement and Selection for Bearing Sensors with Bounded Uncertainty*,
-  ICRA 2013, DOI: `10.1109/ICRA.2013.6630920`。用于楔形交集和最坏定位误差。
+  ICRA 2013, DOI: `10.1109/ICRA.2013.6630920`。直接用于有界误差楔形交集和最坏定位
+  直径；其原问题是固定传感器布局，本题第二检测点是相应指标下的自适应扩展。
 - Vander Hook, Tokekar, Isler, *Algorithms for Cooperative Active Localization of Static Targets
   With Mobile Bearing Sensors Under Communication Constraints*, IEEE TRO 2015,
   DOI: `10.1109/TRO.2015.2432612`。用于主动测点与任务路线联合考虑。

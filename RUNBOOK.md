@@ -26,12 +26,14 @@ python robot_strategy.py --problem 4 --robot-id YOUR_TEAM_ID --log output/p4_pra
 
 任务结束后，终端会显示成功清除数量、总虚拟时间及“总虚拟时间 / 成功清除数量”得到的平均每个干扰源定位清除时间。
 
-打包后的程序使用相同规则：
+打包后的第三问和第四问程序已经分开，均不再需要 `--problem` 参数：
 
 ```powershell
-.\dist\cumcm_robot.exe --problem 3 --robot-id YOUR_TEAM_ID --log output/p3_practice.jsonl
-.\dist\cumcm_robot.exe --problem 4 --robot-id YOUR_TEAM_ID --log output/p4_practice.jsonl
+.\dist\cumcm_robot_p3.exe --robot-id YOUR_TEAM_ID --log output/p3_practice.jsonl
+.\dist\cumcm_robot_p4.exe --robot-id YOUR_TEAM_ID --log output/p4_practice.jsonl
 ```
+
+两个 EXE 分别固定执行问题 3 和问题 4，传入 `--problem` 会被拒绝。拆分前的统一版已保存在 `backup/25_point_dual_ring_unified/`。
 
 如果模拟调试器端口不是 2026，例如改为了 2027，则增加：
 
