@@ -500,14 +500,16 @@ def write_policy(problem: int, robot_id: str, output: Path) -> None:
     """Write the response-dependent command policy without contacting a port."""
     stations = p3_search_stations() if problem == 3 else p4_search_stations()
     policy = {
-        "format": "cumcm2026b-adaptive-policy-v7",
+        "format": "cumcm2026b-adaptive-policy-v8",
         "problem": problem,
         "robot_id": robot_id,
         "search_stations": [{"x": x, "y": y} for x, y in stations],
         "channel_rule": ("scan 1..20 in snake order; skip cleared channels; stop refining a known "
                          "channel at MEC<=19m for P3 or <=60m for P4; once 16 sources are known, "
                          "skip every unseen channel; in P4 also stop the global route"),
-        "direction_rule": "intersect arena, 1500m disks and all +/-1deg bearing wedges",
+        "direction_rule": ("intersect arena, 1500m disks and all +/-1deg bearing wedges; "
+                           "P3 chooses the nearest guaranteed receiver retaining at least "
+                           "10% of the best sampled worst-case information"),
         "clear_rule": ("MEC centre if radius<=19m; P3 probes the MEC centre once at radius<=40m; "
                        "P4 first uses guaranteed symmetric receiver pairs; otherwise use a 19m "
                        "triangular cover of the feasible polygon"),

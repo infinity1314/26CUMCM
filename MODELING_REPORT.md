@@ -187,11 +187,11 @@ q_\pm\approx(833.94,\ \pm548.22)
 ### 3.1 全局发现阶段
 
 首先判断能否把发现点数从 7 降至 6。这等价于用 6 个半径 1000 m 的圆覆盖半径
-1800 m 的目标圆。Bezdek 对“6 个单位圆能覆盖的最大同心圆”给出的全局最优半径为
-约 `1.7988678`；将该尺度换算到本题，覆盖半径至少需要
+1800 m 的目标圆。Bezdek 已证明：用 6 个全等圆覆盖单位圆时，全局最小半径为
+`0.5559052114`。将该尺度换算到本题，覆盖半径至少需要
 
 \[
-1800/1.7988678\approx1000.6294\text{ m}>1000\text{ m}.
+1800\times0.5559052114=1000.6294\text{ m}>1000\text{ m}.
 \]
 
 本文又以任意不对称六圆心为变量，用 Voronoi 顶点及目标圆边界上的两两等距点精确计算
@@ -361,6 +361,7 @@ for 每个已发现但未清除的频道（按最近目标区域排序）:
 
 - `localization_geometry.py`：角域裁剪、定位多边形直径、Welzl 最小包围圆、保证接收的第二站选址、19 m 清除覆盖网。
 - `robot_strategy.py`：问题 3/4 的自适应 HTTP 策略和 JSONL 指令日志。
+- `benchmark_p3_optimized.py`：从备份载入旧 P3，与当前 P3 做同场景配对测试。
 - `output/p3_policy.json`、`output/p4_policy.json`：不连接模拟器即可审阅的策略文件。
 
 已完成的纯数学离线验证包括：
@@ -390,3 +391,4 @@ for 每个已发现但未清除的频道（按最近目标区域排序）:
 6. Gaspar, Z., Tarnai, T., Hincz, K. Partial Covering of a Circle by 6 and 7 Congruent Circles. *Symmetry*, 13(11):2133, 2021. DOI: `10.3390/sym13112133`.
 7. Bishop, A. N., Fidan, B., Anderson, B. D. O., Dogancay, K., Pathirana, P. N. Optimality Analysis of Sensor-Target Localization Geometries. *Automatica*, 46(3):479--492, 2010. DOI: `10.1016/j.automatica.2009.12.003`.
 8. Bayram, H., Vander Hook, J., Isler, V. Gathering Bearing Data for Target Localization. *IEEE Robotics and Automation Letters*, 1(1):369--374, 2016. DOI: `10.1109/LRA.2016.2521387`.
+9. Bezdek, K. *Optimal Covering of Circles*. Thesis, Budapest, 1979 (in Hungarian). The six-circle optimum is also summarized and numerically reproduced in Gaspar et al. [6].
